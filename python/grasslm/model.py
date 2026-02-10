@@ -24,7 +24,7 @@ class GrassLM(nn.Module):
 
     Architecture:
         input_ids → tok_embed + pos_embed
-        → N × GrassmannBlock (each with its own window offset)
+        → N x GrassmannBlock (each with its own window offset)
         → LayerNorm
         → LM head (weight-tied with tok_embed)
         → logits
