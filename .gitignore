@@ -1,0 +1,35 @@
+# Project docs & paper
+*.pdf
+*.md
+!README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# PyTorch
+*.pt
+*.pth
+*.ckpt
+
+# GrassLM model weights
+*.grasslm
+
+# C++ build
+cpp/build/
+
+# macOS
+.DS_Store
+
+# Xcode
+app/GrassLM.xcodeproj/
+xcuserdata/
+DerivedData/
+
+.claude
