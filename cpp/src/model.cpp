@@ -24,9 +24,19 @@ bool GrassLMModel::load(const WeightLoader& loader) {
         tok_embed_ = loader.get("tok_embed.weight");  // (vocab_size, d_model)
         pos_embed_ = loader.get("pos_embed.weight");  // (max_seq_len, d_model)
 
-        // Window schedule
+        // Window schedule: prefer explicit schedule from the file, else use default
         int n_layers = static_cast<int>(config_.n_layers);
-        std::vector<int> schedule = get_window_schedule(n_layers);
+        std::vector<int> schedule;
+        auto& weights = loader.weights();
+        auto it = weights.find("window_offsets");
+        if (it != weights.end() && it->second.numel() == n_layers) {
+            schedule.resize(n_layers);
+            for (int i = 0; i < n_layers; ++i) {
+                schedule[i] = static_cast<int>(it->second.data()[i]);
+            }
+        } else {
+            schedule = get_window_schedule(n_layers);
+        }
 
         // Load blocks
         blocks_.resize(n_layers);
@@ -103,6 +113,38 @@ Tensor GrassLMModel::forward(const std::vector<int>& token_ids) const {
     Tensor logits = h.linear(tok_embed_);  // (L, vocab_size)
 
     return logits;
+}
+
+ForwardDebugResult GrassLMModel::forward_debug(const std::vector<int>& token_ids) const {
+    ForwardDebugResult result;
+    int L = static_cast<int>(token_ids.size());
+    int d = static_cast<int>(config_.d_model);
+
+    // Token + positional embeddings
+    Tensor h({L, d});
+    for (int t = 0; t < L; ++t) {
+        int id = token_ids[t];
+        for (int j = 0; j < d; ++j) {
+            h(t, j) = tok_embed_(id, j) + pos_embed_(t, j);
+        }
+    }
+    result.embed_output = h;
+
+    // Pass through Grassmann blocks, saving each output
+    result.block_outputs.reserve(blocks_.size());
+    for (const auto& block : blocks_) {
+        h = block.forward(h);
+        result.block_outputs.push_back(h);
+    }
+
+    // Final layer norm
+    h = h.layernorm(ln_final_weight_, ln_final_bias_);
+    result.final_norm_output = h;
+
+    // LM head (weight-tied with tok_embed): logits = h @ tok_embed^T
+    result.logits = h.linear(tok_embed_);
+
+    return result;
 }
 
 }  // namespace grasslm

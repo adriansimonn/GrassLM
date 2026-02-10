@@ -9,6 +9,14 @@
 
 namespace grasslm {
 
+/// Intermediate activations from a debug forward pass.
+struct ForwardDebugResult {
+    Tensor embed_output;                  // (L, d_model) after tok+pos embed
+    std::vector<Tensor> block_outputs;    // per-layer h after each block
+    Tensor final_norm_output;             // (L, d_model) after final layernorm
+    Tensor logits;                        // (L, vocab_size)
+};
+
 /// Full GrassLM causal language model: embeddings + N blocks + LM head.
 class GrassLMModel {
 public:
@@ -21,6 +29,9 @@ public:
     /// token_ids: vector of token indices, length L.
     /// Returns logits tensor of shape (L, vocab_size).
     Tensor forward(const std::vector<int>& token_ids) const;
+
+    /// Debug forward pass: returns intermediate activations at each stage.
+    ForwardDebugResult forward_debug(const std::vector<int>& token_ids) const;
 
     const ModelConfig& config() const { return config_; }
 

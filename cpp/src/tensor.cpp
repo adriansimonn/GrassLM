@@ -129,12 +129,12 @@ Tensor Tensor::sigmoid() const {
 }
 
 Tensor Tensor::gelu() const {
+    // Exact GELU using erf (matches PyTorch's nn.GELU default: approximate='none')
     Tensor result(shape_);
-    constexpr float sqrt_2_over_pi = 0.7978845608028654f;
+    constexpr float inv_sqrt2 = 0.7071067811865476f;  // 1/sqrt(2)
     for (int i = 0; i < numel_; ++i) {
         float x = data_[i];
-        float inner = sqrt_2_over_pi * (x + 0.044715f * x * x * x);
-        result.data_[i] = 0.5f * x * (1.0f + std::tanh(inner));
+        result.data_[i] = 0.5f * x * (1.0f + std::erf(x * inv_sqrt2));
     }
     return result;
 }
