@@ -45,9 +45,9 @@ Tensor PluckerEncoder::forward(const Tensor& h, int offset) const {
 
     int valid_len = L - offset;
 
-    // 3. Form causal pairs: z_t paired with z_{t+offset}
-    Tensor z_t = z.slice(0, 0, valid_len);       // (valid_len, d_reduce)
-    Tensor z_td = z.slice(0, offset, L);          // (valid_len, d_reduce)
+    // 3. Form causal pairs: z_t paired with z_{t-offset} (look backward)
+    Tensor z_t = z.slice(0, offset, L);           // (valid_len, d_reduce)  — positions offset..L-1
+    Tensor z_td = z.slice(0, 0, valid_len);       // (valid_len, d_reduce)  — positions 0..L-offset-1
 
     // 4. Compute Plucker coordinates:
     //    p[l][k] = z_t[l][idx_i[k]] * z_td[l][idx_j[k]]
@@ -76,14 +76,14 @@ Tensor PluckerEncoder::forward(const Tensor& h, int offset) const {
     // 6. Project back to model dimension: g_valid = p_hat @ W_plu^T + bias
     Tensor g_valid = p_hat.linear(W_plu_weight_, W_plu_bias_);  // (valid_len, d_model)
 
-    // 7. Pad to full sequence length (positions without valid pairs get zeros)
+    // 7. Pad to full sequence length (first offset positions have no backward neighbor)
     Tensor g({L, d_model_});
     g.zeros();
     float* g_data = g.data();
     const float* gv_data = g_valid.data();
     for (int l = 0; l < valid_len; ++l) {
         std::copy(gv_data + l * d_model_, gv_data + (l + 1) * d_model_,
-                  g_data + l * d_model_);
+                  g_data + (l + offset) * d_model_);
     }
 
     return g;
@@ -114,8 +114,8 @@ Tensor GrassmannMixing::forward(const Tensor& h) const {
         Tensor g_delta = plucker_encoder_.forward(h, delta);  // (L, d)
         g_sum.axpy(1.0f, g_delta);
 
-        int valid_len = std::max(L - delta, 0);
-        for (int t = 0; t < valid_len; ++t) {
+        // Positions delta..L-1 are valid (they have a backward neighbor)
+        for (int t = delta; t < L; ++t) {
             count[t] += 1.0f;
         }
     }

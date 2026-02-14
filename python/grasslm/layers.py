@@ -40,11 +40,11 @@ class PluckerEncoder(nn.Module):
 
         Args:
             h: Hidden states, shape (B, L, d_model)
-            window_offset: Causal offset Δ > 0; pairs position t with t+Δ
+            window_offset: Causal offset Δ > 0; pairs position t with t-Δ
 
         Returns:
             g: Grassmann features, shape (B, L, d_model).
-               Positions where t+Δ > L are zero-padded.
+               First Δ positions (with no backward neighbor) are zero-padded.
         """
         B, L, _ = h.shape
         delta = window_offset
@@ -52,13 +52,13 @@ class PluckerEncoder(nn.Module):
         # 1. Reduce to low-rank space
         z = self.W_red(h)  # (B, L, r)
 
-        # 2. Form causal pairs: z_t paired with z_{t+delta}
+        # 2. Form causal pairs: z_t paired with z_{t-delta} (look backward)
         if delta >= L:
             # No valid pairs exist
             return torch.zeros_like(h)
 
-        z_t = z[:, :L - delta, :]      # (B, L-Δ, r)
-        z_td = z[:, delta:, :]          # (B, L-Δ, r)
+        z_t = z[:, delta:, :]           # (B, L-Δ, r)  — positions Δ..L-1
+        z_td = z[:, :L - delta, :]      # (B, L-Δ, r)  — positions 0..L-Δ-1
 
         # 3. Compute Plucker coordinates: p[i,j] = z_t[i]*z_td[j] - z_t[j]*z_td[i]
         z_t_i = z_t[:, :, self.idx_i]   # (B, L-Δ, plucker_dim)
@@ -74,9 +74,9 @@ class PluckerEncoder(nn.Module):
         # 5. Project back to model dimension
         g_valid = self.W_plu(p_hat)  # (B, L-Δ, d_model)
 
-        # 6. Pad to full sequence length (positions without valid pairs get zeros)
+        # 6. Pad to full sequence length (first Δ positions have no backward neighbor)
         g = torch.zeros(B, L, self.d_model, device=h.device, dtype=h.dtype)
-        g[:, :L - delta, :] = g_valid
+        g[:, delta:, :] = g_valid
 
         return g
 
@@ -128,10 +128,9 @@ class GrassmannMixing(nn.Module):
             g_delta = self.plucker_encoder(h, delta)  # (B, L, d)
             g_sum = g_sum + g_delta
 
-            # Track how many offsets are valid per position
-            valid_len = max(L - delta, 0)
-            if valid_len > 0:
-                count[:, :valid_len, :] += 1.0
+            # Track how many offsets are valid per position (positions delta..L-1)
+            if delta < L:
+                count[:, delta:, :] += 1.0
 
         # 2. Average over valid offsets
         g = g_sum / count.clamp(min=1.0)
