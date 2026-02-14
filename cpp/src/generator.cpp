@@ -119,6 +119,8 @@ void Generator::generate_stream(const std::string& prompt,
     std::random_device rd;
     std::mt19937 rng(rd());
 
+    bool first_generated = true;
+
     for (int step = 0; step < config.max_tokens; step++) {
         // Truncate to max_seq_len if needed (keep most recent tokens)
         std::vector<int> context;
@@ -144,12 +146,33 @@ void Generator::generate_stream(const std::string& prompt,
         // Check for EOS
         if (next_token == config.eos_token_id) break;
 
-        // Decode and stream
-        std::string decoded = tokenizer_.decode({next_token});
+        // Decode token with proper spacing
+        const std::string& raw_token = tokenizer_.id_to_token(next_token);
 
-        // Add space before regular tokens (not the first one)
-        if (!decoded.empty()) {
-            callback(decoded);
+        // Skip special tokens
+        if (raw_token == "[CLS]" || raw_token == "[SEP]" || raw_token == "[PAD]" ||
+            raw_token == "[UNK]" || raw_token == "[MASK]") {
+            token_ids.push_back(next_token);
+            continue;
+        }
+
+        std::string text;
+        if (raw_token.size() >= 2 && raw_token[0] == '#' && raw_token[1] == '#') {
+            // Continuation subword: no space, strip ## prefix
+            text = raw_token.substr(2);
+        } else {
+            // Regular token: prepend space unless it's the first generated token
+            if (!first_generated) {
+                text = " " + raw_token;
+            } else {
+                text = raw_token;
+            }
+        }
+
+        first_generated = false;
+
+        if (!text.empty()) {
+            callback(text);
         }
 
         // Append to sequence

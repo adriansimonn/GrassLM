@@ -53,7 +53,7 @@ TEST(PluckerEncoderTest, ForwardOutputShape) {
 }
 
 TEST(PluckerEncoderTest, ForwardZeroPadding) {
-    // With offset=1, the last position should be zero-padded
+    // With offset=1, the first position should be zero-padded (no backward neighbor)
     int d_model = 8, d_reduce = 4;
     PluckerEncoder encoder = make_test_encoder(d_model, d_reduce);
 
@@ -62,9 +62,9 @@ TEST(PluckerEncoderTest, ForwardZeroPadding) {
 
     Tensor g = encoder.forward(h, 1);
 
-    // Last row (position 3) should be all zeros (no valid pair at t+1 when t=3, L=4)
+    // First row (position 0) should be all zeros (no valid pair at t-1 when t=0)
     for (int j = 0; j < d_model; ++j) {
-        EXPECT_FLOAT_EQ(g(3, j), 0.0f);
+        EXPECT_FLOAT_EQ(g(0, j), 0.0f);
     }
 }
 
@@ -112,7 +112,7 @@ TEST(PluckerEncoderTest, PluckerAntisymmetry) {
     // With offset=1, consecutive tokens are identical → Plucker coords = 0
     // So g should be W_plu @ 0 + bias = 0 (bias is zero)
     Tensor g = encoder.forward(h, 1);
-    for (int t = 0; t < 2; ++t) {  // valid positions
+    for (int t = 1; t < 3; ++t) {  // valid positions (1..2, position 0 is zero-padded)
         for (int j = 0; j < d_model; ++j) {
             EXPECT_NEAR(g(t, j), 0.0f, 1e-5f);
         }

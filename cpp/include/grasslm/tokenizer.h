@@ -28,6 +28,13 @@ public:
 
     int vocab_size() const { return static_cast<int>(id_to_token_.size()); }
 
+    /// Get the raw token string for a given ID (empty if out of range).
+    const std::string& id_to_token(int id) const {
+        static const std::string empty;
+        if (id < 0 || id >= static_cast<int>(id_to_token_.size())) return empty;
+        return id_to_token_[id];
+    }
+
 private:
     std::unordered_map<std::string, int> token_to_id_;
     std::vector<std::string> id_to_token_;
