@@ -1,11 +1,15 @@
 """
-Training loop for GrassLM on Wikitext-2.
+Training loop for GrassLM.
 
 Command:
-    python train.py --model_name GrassLM-10M [--epochs 30] [--batch_size 32]
-                    [--lr 3e-4] [--seq_len 128] [--d_model 256] [--n_layers 6]
-                    [--d_reduce 32] [--d_ff 1024] [--dropout 0.1]
-                    [--warmup_steps 2000] [--weight_decay 0.01] [--seed 42]
+    # 10M model (Wikitext-2):
+    python train.py --model_name GrassLM-10M
+
+    # 100M model (Wikitext-103 on GPU):
+    python train.py --model_name GrassLM-100M --d_model 640 --n_layers 12 \
+                    --d_reduce 80 --d_ff 3072 --seq_len 256 --batch_size 64 \
+                    --epochs 10 --lr 1e-4 --warmup_steps 4000 \
+                    --dataset wikitext-103-raw --amp
 
     # Or with explicit checkpoint dir:
     python train.py --checkpoint_dir path/to/checkpoints [...]
@@ -23,7 +27,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 
 from grasslm.data import create_dataloaders
-from grasslm.model import GrassLM
+from grasslm.model import GrassLM, WINDOW_SCHEDULES
 from grasslm.registry import models_dir, save_config
 
 
@@ -82,10 +86,12 @@ def train(args: argparse.Namespace) -> None:
     print(f"Using device: {device}")
 
     # Data
-    print("Loading Wikitext-2 data...")
+    dataset_name = getattr(args, "dataset", "wikitext-2-raw")
+    print(f"Loading {dataset_name} data...")
     train_loader, val_loader, _ = create_dataloaders(
         seq_len=args.seq_len,
         batch_size=args.batch_size,
+        dataset_name=dataset_name,
     )
     print(f"Train batches: {len(train_loader)}, Val batches: {len(val_loader)}")
 
@@ -118,6 +124,13 @@ def train(args: argparse.Namespace) -> None:
     # Loss
     loss_fn = nn.CrossEntropyLoss()
 
+    # Automatic mixed precision
+    use_amp = getattr(args, "amp", False) and device.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+    amp_dtype = torch.float16 if use_amp else torch.float32
+    if use_amp:
+        print("Using automatic mixed precision (float16)")
+
     # Checkpointing
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     best_val_ppl = float("inf")
@@ -147,13 +160,16 @@ def train(args: argparse.Namespace) -> None:
             input_ids = batch["input_ids"].to(device)
             labels = batch["labels"].to(device)
 
-            logits = model(input_ids)  # (B, L, V)
-            loss = loss_fn(logits.view(-1, logits.size(-1)), labels.view(-1))
+            with torch.amp.autocast("cuda", dtype=amp_dtype, enabled=use_amp):
+                logits = model(input_ids)  # (B, L, V)
+                loss = loss_fn(logits.view(-1, logits.size(-1)), labels.view(-1))
 
             optimizer.zero_grad()
-            loss.backward()
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
 
             batch_tokens = labels.numel()
@@ -216,7 +232,7 @@ def train(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train GrassLM on Wikitext-2")
+    parser = argparse.ArgumentParser(description="Train GrassLM")
 
     # Model
     parser.add_argument("--d_model", type=int, default=256)
@@ -228,6 +244,11 @@ def parse_args() -> argparse.Namespace:
     # Data
     parser.add_argument("--seq_len", type=int, default=128)
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument(
+        "--dataset", type=str, default="wikitext-2-raw",
+        choices=["wikitext-2-raw", "wikitext-103-raw"],
+        help="Training dataset (default: wikitext-2-raw)",
+    )
 
     # Training
     parser.add_argument("--epochs", type=int, default=30)
@@ -235,6 +256,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--weight_decay", type=float, default=0.01)
     parser.add_argument("--warmup_steps", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--amp", action="store_true",
+        help="Enable automatic mixed precision (CUDA only)",
+    )
 
     # Output
     parser.add_argument(
@@ -290,9 +315,10 @@ if __name__ == "__main__":
     # Save config.json if using model registry
     model_name = getattr(args, "model_name", None)
     if model_name:
+        vocab_size = 30522  # BERT WordPiece
         n_params = sum(
             p.numel() for p in GrassLM(
-                vocab_size=30522,
+                vocab_size=vocab_size,
                 d_model=args.d_model,
                 n_layers=args.n_layers,
                 d_reduce=args.d_reduce,
@@ -301,20 +327,23 @@ if __name__ == "__main__":
                 dropout=0.0,
             ).parameters()
         )
+        # Use built-in window schedule if available, otherwise [1]*n_layers
+        schedule = WINDOW_SCHEDULES.get(args.n_layers, [1] * args.n_layers)
+        dataset_name = getattr(args, "dataset", "wikitext-2-raw")
         config = {
             "name": model_name,
             "parameters": n_params,
             "architecture": {
-                "vocab_size": 30522,
+                "vocab_size": vocab_size,
                 "d_model": args.d_model,
                 "n_layers": args.n_layers,
                 "d_reduce": args.d_reduce,
                 "d_ff": args.d_ff,
                 "max_seq_len": args.seq_len,
-                "window_schedule": [1, 2, 4, 8, 12, 16][:args.n_layers],
+                "window_schedule": schedule,
             },
             "training": {
-                "dataset": "wikitext-2-raw",
+                "dataset": dataset_name,
                 "tokenizer": "bert-base-uncased",
                 "epochs": args.epochs,
                 "batch_size": args.batch_size,

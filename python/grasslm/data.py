@@ -1,9 +1,10 @@
 """
-Data pipeline for GrassLM: Wikitext-2 loading, tokenization, and chunking.
+Data pipeline for GrassLM: Wikitext loading, tokenization, and chunking.
 
-Loads Wikitext-2-raw via HuggingFace datasets, tokenizes with the BERT
-WordPiece tokenizer (bert-base-uncased, vocab=30522), chunks into fixed-length
-blocks, and returns input_ids/labels pairs for causal language modeling.
+Loads Wikitext-2-raw or Wikitext-103-raw via HuggingFace datasets, tokenizes
+with the BERT WordPiece tokenizer (bert-base-uncased, vocab=30522), chunks into
+fixed-length blocks, and returns input_ids/labels pairs for causal language
+modeling.
 """
 
 import torch
@@ -73,21 +74,34 @@ def tokenize_split(
     return torch.tensor(all_ids, dtype=torch.long)
 
 
-def load_wikitext2(
+DATASETS = {
+    "wikitext-2-raw": ("wikitext", "wikitext-2-raw-v1"),
+    "wikitext-103-raw": ("wikitext", "wikitext-103-raw-v1"),
+}
+
+
+def load_wikitext(
     seq_len: int = 128,
     tokenizer_name: str = "bert-base-uncased",
+    dataset_name: str = "wikitext-2-raw",
 ) -> tuple[WikitextCausalLMDataset, WikitextCausalLMDataset, WikitextCausalLMDataset]:
     """
-    Load and prepare Wikitext-2-raw for causal LM training.
+    Load and prepare a Wikitext dataset for causal LM training.
 
     Args:
-        seq_len: Context length for each training sample (128 or 256).
+        seq_len: Context length for each training sample.
         tokenizer_name: HuggingFace tokenizer to use.
+        dataset_name: Which dataset to load ("wikitext-2-raw" or "wikitext-103-raw").
 
     Returns:
         Tuple of (train_dataset, val_dataset, test_dataset).
     """
-    dataset = load_dataset("wikitext", "wikitext-2-raw-v1", trust_remote_code=True)
+    if dataset_name not in DATASETS:
+        raise ValueError(
+            f"Unknown dataset '{dataset_name}'. Available: {list(DATASETS.keys())}"
+        )
+    hf_path, hf_name = DATASETS[dataset_name]
+    dataset = load_dataset(hf_path, hf_name, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     train_ids = tokenize_split(dataset["train"]["text"], tokenizer)
@@ -106,6 +120,7 @@ def create_dataloaders(
     batch_size: int = 32,
     tokenizer_name: str = "bert-base-uncased",
     num_workers: int = 0,
+    dataset_name: str = "wikitext-2-raw",
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
     """
     Create DataLoaders for train/val/test splits.
@@ -115,12 +130,13 @@ def create_dataloaders(
         batch_size: Batch size for all splits.
         tokenizer_name: HuggingFace tokenizer to use.
         num_workers: Number of dataloader worker processes.
+        dataset_name: Which dataset to load ("wikitext-2-raw" or "wikitext-103-raw").
 
     Returns:
         Tuple of (train_loader, val_loader, test_loader).
     """
-    train_ds, val_ds, test_ds = load_wikitext2(
-        seq_len=seq_len, tokenizer_name=tokenizer_name
+    train_ds, val_ds, test_ds = load_wikitext(
+        seq_len=seq_len, tokenizer_name=tokenizer_name, dataset_name=dataset_name
     )
 
     train_loader = DataLoader(

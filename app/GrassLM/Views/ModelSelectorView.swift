@@ -15,8 +15,14 @@ struct ModelInfo: Identifiable, Hashable {
             parameterCount: "12.6M params",
             resourceName: "grasslm-6L",
             fileExtension: "grasslm"
-        )
-        // Additional models can be added here as they become available
+        ),
+        ModelInfo(
+            id: "grasslm-100m",
+            displayName: "GrassLM 100M",
+            parameterCount: "102M params",
+            resourceName: "grasslm-12L",
+            fileExtension: "grasslm"
+        ),
     ]
 }
 
