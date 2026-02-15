@@ -1,0 +1,29 @@
+{
+  "name": "GrassLM-10M",
+  "parameters": 12607168,
+  "architecture": {
+    "vocab_size": 30522,
+    "d_model": 256,
+    "n_layers": 6,
+    "d_reduce": 32,
+    "d_ff": 1024,
+    "max_seq_len": 128,
+    "window_schedule": [1, 2, 4, 8, 12, 16]
+  },
+  "training": {
+    "dataset": "wikitext-2-raw",
+    "tokenizer": "bert-base-uncased",
+    "epochs": 30,
+    "batch_size": 32,
+    "learning_rate": 3e-4,
+    "weight_decay": 0.01,
+    "warmup_steps": 2000,
+    "seed": 42,
+    "best_epoch": 19,
+    "best_val_ppl": 218.57
+  },
+  "files": {
+    "best_checkpoint": "checkpoints/best_model.pt",
+    "latest_checkpoint": "checkpoints/latest.pt"
+  }
+}

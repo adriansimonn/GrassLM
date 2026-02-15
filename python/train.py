@@ -2,10 +2,13 @@
 Training loop for GrassLM on Wikitext-2.
 
 Command:
-    python train.py [--epochs 30] [--batch_size 32] [--lr 3e-4] [--seq_len 128]
-                    [--d_model 256] [--n_layers 6] [--d_reduce 32] [--d_ff 1024]
-                    [--dropout 0.1] [--warmup_steps 2000] [--weight_decay 0.01]
-                    [--checkpoint_dir checkpoints] [--seed 42]
+    python train.py --model_name GrassLM-10M [--epochs 30] [--batch_size 32]
+                    [--lr 3e-4] [--seq_len 128] [--d_model 256] [--n_layers 6]
+                    [--d_reduce 32] [--d_ff 1024] [--dropout 0.1]
+                    [--warmup_steps 2000] [--weight_decay 0.01] [--seed 42]
+
+    # Or with explicit checkpoint dir:
+    python train.py --checkpoint_dir path/to/checkpoints [...]
 """
 
 import argparse
@@ -21,6 +24,7 @@ from tqdm import tqdm
 
 from grasslm.data import create_dataloaders
 from grasslm.model import GrassLM
+from grasslm.registry import models_dir, save_config
 
 
 def get_device() -> torch.device:
@@ -233,7 +237,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
 
     # Output
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints")
+    parser.add_argument(
+        "--model_name", type=str, default=None,
+        help="Model name (e.g. GrassLM-10M). Saves to models/<name>/checkpoints/",
+    )
+    parser.add_argument(
+        "--checkpoint_dir", type=str, default=None,
+        help="Explicit checkpoint directory (overrides --model_name)",
+    )
 
     # Resume
     parser.add_argument(
@@ -247,6 +258,15 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
 
+    # Resolve checkpoint directory
+    if args.checkpoint_dir is not None:
+        pass  # explicit path, use as-is
+    elif args.model_name is not None:
+        model_dir = models_dir() / args.model_name
+        args.checkpoint_dir = str(model_dir / "checkpoints")
+    else:
+        args.checkpoint_dir = "checkpoints"
+
     if args.resume:
         print(f"Resuming from checkpoint: {args.resume}")
         ckpt = torch.load(args.resume, weights_only=False)
@@ -255,6 +275,9 @@ if __name__ == "__main__":
         resume_epoch = ckpt["epoch"]
         saved_args["epochs"] = args.epochs
         saved_args["resume"] = args.resume
+        saved_args["checkpoint_dir"] = args.checkpoint_dir
+        if args.model_name:
+            saved_args["model_name"] = args.model_name
         args = argparse.Namespace(**saved_args)
         args._resume_ckpt = ckpt
         args._resume_epoch = resume_epoch
@@ -263,3 +286,47 @@ if __name__ == "__main__":
         args._resume_epoch = 0
 
     train(args)
+
+    # Save config.json if using model registry
+    model_name = getattr(args, "model_name", None)
+    if model_name:
+        n_params = sum(
+            p.numel() for p in GrassLM(
+                vocab_size=30522,
+                d_model=args.d_model,
+                n_layers=args.n_layers,
+                d_reduce=args.d_reduce,
+                d_ff=args.d_ff,
+                max_seq_len=args.seq_len,
+                dropout=0.0,
+            ).parameters()
+        )
+        config = {
+            "name": model_name,
+            "parameters": n_params,
+            "architecture": {
+                "vocab_size": 30522,
+                "d_model": args.d_model,
+                "n_layers": args.n_layers,
+                "d_reduce": args.d_reduce,
+                "d_ff": args.d_ff,
+                "max_seq_len": args.seq_len,
+                "window_schedule": [1, 2, 4, 8, 12, 16][:args.n_layers],
+            },
+            "training": {
+                "dataset": "wikitext-2-raw",
+                "tokenizer": "bert-base-uncased",
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "learning_rate": args.lr,
+                "weight_decay": args.weight_decay,
+                "warmup_steps": args.warmup_steps,
+                "seed": args.seed,
+            },
+            "files": {
+                "best_checkpoint": "checkpoints/best_model.pt",
+                "latest_checkpoint": "checkpoints/latest.pt",
+            },
+        }
+        save_config(model_name, config)
+        print(f"Saved config to models/{model_name}/config.json")

@@ -15,7 +15,8 @@ Tensor binary format:
   float32 data[numel]  (row-major, C-contiguous)
 
 Usage:
-    python export_test_data.py --checkpoint checkpoints/best_model.pt --output test_data/
+    python export_test_data.py --model_name GrassLM-10M --output test_data/
+    python export_test_data.py --checkpoint path/to/best_model.pt --output test_data/
     python export_test_data.py --output test_data/  # uses a fresh random model
 """
 
@@ -28,6 +29,7 @@ import torch
 
 from grasslm.export import export_model
 from grasslm.model import GrassLM
+from grasslm.registry import resolve_checkpoint
 
 
 def write_tensor(path: str, tensor: torch.Tensor) -> None:
@@ -149,8 +151,13 @@ def main():
         description="Export test data for C++ numerical parity tests"
     )
     parser.add_argument(
+        "--model_name", type=str, default=None,
+        help="Model name (e.g. GrassLM-10M). Loads best checkpoint from models/<name>/",
+    )
+    parser.add_argument(
         "--checkpoint", type=str, default=None,
-        help="Path to model checkpoint (.pt). If omitted, uses a small random model.",
+        help="Path to model checkpoint (.pt). Overrides --model_name. "
+             "If both omitted, uses a small random model.",
     )
     parser.add_argument(
         "--output", type=str, default="test_data",
@@ -165,7 +172,13 @@ def main():
         help="Random seed (default: 42)",
     )
     args = parser.parse_args()
-    export_test_data(args.output, args.checkpoint, args.seq_len, args.seed)
+
+    # Resolve checkpoint path
+    checkpoint = args.checkpoint
+    if checkpoint is None and args.model_name is not None:
+        checkpoint = resolve_checkpoint(args.model_name)
+
+    export_test_data(args.output, checkpoint, args.seq_len, args.seed)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,11 @@
 Evaluate GrassLM perplexity on Wikitext-2 test set.
 
 Command:
-    python evaluate.py --checkpoint checkpoints/best_model.pt [--split test]
+    python evaluate.py --model_name GrassLM-10M [--split test]
                        [--batch_size 32] [--seq_len 128]
+
+    # Or with explicit checkpoint path:
+    python evaluate.py --checkpoint path/to/best_model.pt [--split test]
 """
 
 import argparse
@@ -14,6 +17,7 @@ import torch.nn as nn
 
 from grasslm.data import create_dataloaders
 from grasslm.model import GrassLM
+from grasslm.registry import resolve_checkpoint
 
 
 def get_device() -> torch.device:
@@ -80,8 +84,12 @@ def main() -> None:
         description="Evaluate GrassLM perplexity on Wikitext-2"
     )
     parser.add_argument(
-        "--checkpoint", type=str, required=True,
-        help="Path to model checkpoint (.pt)",
+        "--model_name", type=str, default=None,
+        help="Model name (e.g. GrassLM-10M). Loads best checkpoint from models/<name>/",
+    )
+    parser.add_argument(
+        "--checkpoint", type=str, default=None,
+        help="Path to model checkpoint (.pt). Overrides --model_name.",
     )
     parser.add_argument(
         "--split", type=str, default="test", choices=["val", "test"],
@@ -92,12 +100,19 @@ def main() -> None:
                         help="Override seq_len (default: use checkpoint value)")
     args = parser.parse_args()
 
+    # Resolve checkpoint path
+    checkpoint = args.checkpoint
+    if checkpoint is None and args.model_name is not None:
+        checkpoint = resolve_checkpoint(args.model_name)
+    if checkpoint is None:
+        parser.error("Either --model_name or --checkpoint is required")
+
     device = get_device()
     print(f"Using device: {device}")
 
     # Load model
-    print(f"Loading checkpoint: {args.checkpoint}")
-    model, saved_args = load_model_from_checkpoint(args.checkpoint, device)
+    print(f"Loading checkpoint: {checkpoint}")
+    model, saved_args = load_model_from_checkpoint(checkpoint, device)
 
     n_params = sum(p.numel() for p in model.parameters())
     print(f"Model: {saved_args['n_layers']}L, d={saved_args['d_model']}, "

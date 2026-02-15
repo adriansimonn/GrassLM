@@ -2,10 +2,12 @@
 Text generation for GrassLM: greedy, top-k, and top-p (nucleus) sampling.
 
 Command:
-    python generate.py --checkpoint checkpoints/best_model.pt \
-                       --prompt "The meaning of" \
+    python generate.py --model_name GrassLM-10M --prompt "The meaning of" \
                        [--max_tokens 100] [--temperature 1.0] \
                        [--top_k 0] [--top_p 0.9] [--greedy]
+
+    # Or with explicit checkpoint path:
+    python generate.py --checkpoint path/to/best_model.pt --prompt "The meaning of"
 """
 
 import argparse
@@ -15,6 +17,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer
 
 from grasslm.model import GrassLM
+from grasslm.registry import resolve_checkpoint
 
 
 def get_device() -> torch.device:
@@ -141,8 +144,12 @@ def generate(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate text with GrassLM")
     parser.add_argument(
-        "--checkpoint", type=str, required=True,
-        help="Path to model checkpoint (.pt)",
+        "--model_name", type=str, default=None,
+        help="Model name (e.g. GrassLM-10M). Loads best checkpoint from models/<name>/",
+    )
+    parser.add_argument(
+        "--checkpoint", type=str, default=None,
+        help="Path to model checkpoint (.pt). Overrides --model_name.",
     )
     parser.add_argument(
         "--prompt", type=str, default="The meaning of",
@@ -160,6 +167,13 @@ def main() -> None:
                         help="Random seed for reproducibility")
     args = parser.parse_args()
 
+    # Resolve checkpoint path
+    checkpoint = args.checkpoint
+    if checkpoint is None and args.model_name is not None:
+        checkpoint = resolve_checkpoint(args.model_name)
+    if checkpoint is None:
+        parser.error("Either --model_name or --checkpoint is required")
+
     if args.seed is not None:
         torch.manual_seed(args.seed)
 
@@ -167,8 +181,8 @@ def main() -> None:
     print(f"Using device: {device}")
 
     # Load model
-    print(f"Loading checkpoint: {args.checkpoint}")
-    model, saved_args = load_model_from_checkpoint(args.checkpoint, device)
+    print(f"Loading checkpoint: {checkpoint}")
+    model, saved_args = load_model_from_checkpoint(checkpoint, device)
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")

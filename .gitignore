@@ -1,8 +1,3 @@
-# Project docs & paper
-*.pdf
-*.md
-!README.md
-
 # Python
 __pycache__/
 *.py[cod]
@@ -13,13 +8,18 @@ build/
 .venv/
 venv/
 
-# PyTorch
+# PyTorch checkpoints
 *.pt
 *.pth
 *.ckpt
 
 # GrassLM model weights
 *.grasslm
+
+# Model registry: track configs, ignore weights
+!models/*/config.json
+models/*/checkpoints/
+models/*/exported/
 
 # C++ build
 cpp/build/
@@ -32,4 +32,6 @@ app/GrassLM.xcodeproj/
 xcuserdata/
 DerivedData/
 
+# Goat
 .claude
+CLAUDE.md
