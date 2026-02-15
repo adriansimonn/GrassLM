@@ -6,17 +6,19 @@ struct PersistableMessage: Identifiable, Codable {
     let role: MessageRole
     var content: String
     let timestamp: Date
+    var modelID: String?
 
     enum MessageRole: String, Codable {
         case user
         case assistant
     }
 
-    init(role: MessageRole, content: String) {
+    init(role: MessageRole, content: String, modelID: String? = nil) {
         self.id = UUID()
         self.role = role
         self.content = content
         self.timestamp = Date()
+        self.modelID = modelID
     }
 }
 

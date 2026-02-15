@@ -8,14 +8,27 @@
     "d_reduce": 80,
     "d_ff": 3072,
     "max_seq_len": 256,
-    "window_schedule": [1, 1, 2, 2, 4, 4, 8, 8, 12, 12, 16, 16]
+    "window_schedule": [
+      1,
+      1,
+      2,
+      2,
+      4,
+      4,
+      8,
+      8,
+      12,
+      12,
+      16,
+      16
+    ]
   },
   "training": {
     "dataset": "wikitext-103-raw",
     "tokenizer": "bert-base-uncased",
     "epochs": 10,
     "batch_size": 64,
-    "learning_rate": 1e-4,
+    "learning_rate": 0.0001,
     "weight_decay": 0.01,
     "warmup_steps": 4000,
     "seed": 42

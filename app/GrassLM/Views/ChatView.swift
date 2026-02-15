@@ -131,8 +131,10 @@ struct ChatView: View {
                         showSettings.toggle()
                     } label: {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.primary.opacity(0.7))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .help("Generation Settings")

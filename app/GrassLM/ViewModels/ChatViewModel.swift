@@ -16,7 +16,13 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Model Selection
 
-    @Published var selectedModelID: String = ModelInfo.available.first?.id ?? ""
+    @Published var selectedModelID: String = ModelInfo.available.first?.id ?? "" {
+        didSet {
+            if oldValue != selectedModelID {
+                switchModel()
+            }
+        }
+    }
 
     // MARK: - Generation Settings (persisted via UserDefaults)
 
@@ -85,6 +91,14 @@ final class ChatViewModel: ObservableObject {
             }
             self.isLoadingModel = false
         }
+    }
+
+    /// Tear down the current engine and load the newly selected model.
+    private func switchModel() {
+        cancelGeneration()
+        engine = nil
+        isModelLoaded = false
+        loadModel()
     }
 
     // MARK: - Conversation Management
@@ -194,7 +208,7 @@ final class ChatViewModel: ObservableObject {
         errorMessage = nil
 
         // Append a placeholder assistant message that we'll stream into
-        let assistantMessage = PersistableMessage(role: .assistant, content: "")
+        let assistantMessage = PersistableMessage(role: .assistant, content: "", modelID: selectedModelID)
         currentConversation?.messages.append(assistantMessage)
         let messageIndex = (currentConversation?.messages.count ?? 1) - 1
 

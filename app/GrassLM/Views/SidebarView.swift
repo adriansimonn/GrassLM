@@ -11,7 +11,7 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Chats")
+                Text("Generations")
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Spacer()

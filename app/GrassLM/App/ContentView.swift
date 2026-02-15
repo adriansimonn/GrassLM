@@ -87,6 +87,7 @@ struct WindowConfigurator: NSViewRepresentable {
                 window.titleVisibility = .hidden
                 window.styleMask.insert(.fullSizeContentView)
                 window.isMovableByWindowBackground = true
+                window.titlebarSeparatorStyle = .none
             }
         }
         return view

@@ -42,7 +42,7 @@ struct MessageBubble: View {
                 Image(systemName: "leaf.fill")
                     .font(.caption)
                     .foregroundStyle(.green)
-                Text("GrassLM")
+                Text(modelDisplayName)
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -52,5 +52,13 @@ struct MessageBubble: View {
                 .textSelection(.enabled)
                 .lineSpacing(3)
         }
+    }
+
+    private var modelDisplayName: String {
+        if let id = message.modelID,
+           let model = ModelInfo.available.first(where: { $0.id == id }) {
+            return model.displayName
+        }
+        return "GrassLM"
     }
 }
