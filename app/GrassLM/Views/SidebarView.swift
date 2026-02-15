@@ -4,6 +4,8 @@ import SwiftUI
 struct SidebarView: View {
     @ObservedObject var viewModel: ChatViewModel
     @State private var hoveredID: UUID?
+    @State private var renamingID: UUID?
+    @State private var renameText: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,17 +64,29 @@ struct SidebarView: View {
     private func conversationRow(_ conversation: Conversation) -> some View {
         let isSelected = viewModel.currentConversation?.id == conversation.id
         let isHovered = hoveredID == conversation.id
+        let isRenaming = renamingID == conversation.id
 
         return Button {
-            viewModel.selectConversation(conversation.id)
+            if !isRenaming {
+                viewModel.selectConversation(conversation.id)
+            }
         } label: {
             VStack(alignment: .leading, spacing: 3) {
-                Text(conversation.title)
+                if isRenaming {
+                    TextField("Chat name", text: $renameText, onCommit: {
+                        viewModel.renameConversation(conversation.id, to: renameText)
+                        renamingID = nil
+                    })
                     .font(.subheadline)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .textFieldStyle(.plain)
+                } else {
+                    Text(conversation.title)
+                        .font(.subheadline)
+                        .fontWeight(isSelected ? .semibold : .regular)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                }
 
                 Text(conversation.updatedAt, style: .relative)
                     .font(.caption2)
@@ -81,6 +95,7 @@ struct SidebarView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected
@@ -93,6 +108,13 @@ struct SidebarView: View {
             hoveredID = hovering ? conversation.id : nil
         }
         .contextMenu {
+            Button {
+                renameText = conversation.title
+                renamingID = conversation.id
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+
             Button(role: .destructive) {
                 viewModel.deleteConversation(conversation.id)
             } label: {
@@ -105,15 +127,15 @@ struct SidebarView: View {
 
     private var sidebarBackground: some View {
         ZStack {
-            // Base translucent layer
-            VisualEffectBlur(material: .sidebar, blendingMode: .behindWindow)
+            // Base translucent layer — hudWindow is more transparent than sidebar
+            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
 
             // Subtle gradient overlay for the glass effect
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.06),
+                    Color.white.opacity(0.03),
                     Color.clear,
-                    Color.white.opacity(0.03)
+                    Color.white.opacity(0.015)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -124,8 +146,8 @@ struct SidebarView: View {
                 .strokeBorder(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.15),
-                            Color.white.opacity(0.05)
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.02)
                         ],
                         startPoint: .top,
                         endPoint: .bottom

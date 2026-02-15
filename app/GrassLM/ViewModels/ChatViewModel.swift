@@ -18,17 +18,24 @@ final class ChatViewModel: ObservableObject {
 
     @Published var selectedModelID: String = ModelInfo.available.first?.id ?? ""
 
-    // MARK: - Generation Settings
+    // MARK: - Generation Settings (persisted via UserDefaults)
 
-    @Published var temperature: Float = 0.8
-    @Published var topP: Float = 0.9
-    @Published var maxTokens: Int = 128
+    @Published var temperature: Float = 0.8 {
+        didSet { defaults.set(temperature, forKey: "gen_temperature") }
+    }
+    @Published var topP: Float = 0.9 {
+        didSet { defaults.set(topP, forKey: "gen_topP") }
+    }
+    @Published var maxTokens: Int = 128 {
+        didSet { defaults.set(maxTokens, forKey: "gen_maxTokens") }
+    }
 
     // MARK: - Private
 
     private var engine: GrassLMWrapper?
     private var generationTask: Task<Void, Never>?
     private let store = ChatStore.shared
+    private let defaults = UserDefaults.standard
 
     // MARK: - Computed
 
@@ -41,6 +48,17 @@ final class ChatViewModel: ObservableObject {
 
     init() {
         conversations = store.loadAll()
+
+        // Restore persisted generation settings
+        if defaults.object(forKey: "gen_temperature") != nil {
+            temperature = defaults.float(forKey: "gen_temperature")
+        }
+        if defaults.object(forKey: "gen_topP") != nil {
+            topP = defaults.float(forKey: "gen_topP")
+        }
+        if defaults.object(forKey: "gen_maxTokens") != nil {
+            maxTokens = defaults.integer(forKey: "gen_maxTokens")
+        }
     }
 
     // MARK: - Model Loading
@@ -89,6 +107,22 @@ final class ChatViewModel: ObservableObject {
         guard let conversation = conversations.first(where: { $0.id == id }) else { return }
         cancelGeneration()
         currentConversation = conversation
+    }
+
+    /// Rename a conversation by ID.
+    func renameConversation(_ id: UUID, to newTitle: String) {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if let index = conversations.firstIndex(where: { $0.id == id }) {
+            conversations[index].title = trimmed
+            conversations[index].updatedAt = Date()
+            store.save(conversations[index])
+
+            if currentConversation?.id == id {
+                currentConversation = conversations[index]
+            }
+        }
     }
 
     /// Delete a conversation by ID.

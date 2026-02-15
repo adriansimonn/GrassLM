@@ -156,12 +156,14 @@ struct ChatView: View {
                         Button {
                             viewModel.send()
                         } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(
-                                    viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.isModelLoaded
-                                    ? .gray
-                                    : Color.accentColor
+                            let canSend = !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && viewModel.isModelLoaded
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 26, height: 26)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(canSend ? Color.green : Color.gray)
                                 )
                         }
                         .buttonStyle(.plain)
