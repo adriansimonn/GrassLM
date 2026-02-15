@@ -1,36 +1,22 @@
 import Foundation
 import SwiftUI
 
-/// A single message in the conversation.
-struct Message: Identifiable {
-    let id = UUID()
-    let role: Role
-    var content: String
-    let timestamp: Date
-
-    enum Role {
-        case user
-        case assistant
-    }
-
-    init(role: Role, content: String) {
-        self.role = role
-        self.content = content
-        self.timestamp = Date()
-    }
-}
-
-/// Observable ViewModel managing conversation state and generation.
+/// Observable ViewModel managing conversations, generation, and model selection.
 @MainActor
 final class ChatViewModel: ObservableObject {
     // MARK: - Published State
 
-    @Published var messages: [Message] = []
+    @Published var conversations: [Conversation] = []
+    @Published var currentConversation: Conversation?
     @Published var inputText: String = ""
     @Published var isGenerating: Bool = false
     @Published var isModelLoaded: Bool = false
     @Published var isLoadingModel: Bool = false
     @Published var errorMessage: String?
+
+    // MARK: - Model Selection
+
+    @Published var selectedModelID: String = ModelInfo.available.first?.id ?? ""
 
     // MARK: - Generation Settings
 
@@ -42,6 +28,20 @@ final class ChatViewModel: ObservableObject {
 
     private var engine: GrassLMWrapper?
     private var generationTask: Task<Void, Never>?
+    private let store = ChatStore.shared
+
+    // MARK: - Computed
+
+    /// Messages for the current conversation.
+    var messages: [PersistableMessage] {
+        currentConversation?.messages ?? []
+    }
+
+    // MARK: - Initialization
+
+    init() {
+        conversations = store.loadAll()
+    }
 
     // MARK: - Model Loading
 
@@ -53,7 +53,7 @@ final class ChatViewModel: ObservableObject {
 
         Task {
             do {
-                let modelPath = Self.bundledModelPath()
+                let modelPath = Self.bundledModelPath(for: selectedModelID)
                 let vocabPath = Self.bundledVocabPath()
 
                 let wrapper = try await Task.detached(priority: .userInitiated) {
@@ -69,6 +69,54 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Conversation Management
+
+    /// Create a new conversation and make it active.
+    func createNewConversation() {
+        // If the current conversation is empty, just keep it
+        if let current = currentConversation, current.messages.isEmpty {
+            return
+        }
+
+        let conversation = Conversation()
+        store.save(conversation)
+        conversations.insert(conversation, at: 0)
+        currentConversation = conversation
+    }
+
+    /// Select an existing conversation by ID.
+    func selectConversation(_ id: UUID) {
+        guard let conversation = conversations.first(where: { $0.id == id }) else { return }
+        cancelGeneration()
+        currentConversation = conversation
+    }
+
+    /// Delete a conversation by ID.
+    func deleteConversation(_ id: UUID) {
+        store.delete(id)
+        conversations.removeAll { $0.id == id }
+
+        if currentConversation?.id == id {
+            currentConversation = conversations.first
+        }
+    }
+
+    /// Persist the current conversation to disk.
+    private func saveCurrentConversation() {
+        guard var conversation = currentConversation else { return }
+        conversation.updatedAt = Date()
+        store.save(conversation)
+
+        // Update in-memory list
+        if let index = conversations.firstIndex(where: { $0.id == conversation.id }) {
+            conversations[index] = conversation
+        }
+
+        // Re-sort so most recent is first
+        conversations.sort { $0.updatedAt > $1.updatedAt }
+        currentConversation = conversation
+    }
+
     // MARK: - Generation
 
     /// Send the current input text and generate an assistant response.
@@ -76,11 +124,23 @@ final class ChatViewModel: ObservableObject {
         let prompt = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty, !isGenerating, isModelLoaded else { return }
 
-        // Append user message
-        messages.append(Message(role: .user, content: prompt))
-        inputText = ""
+        // Create a conversation if none exists
+        if currentConversation == nil {
+            createNewConversation()
+        }
 
-        // Start generation
+        // Append user message
+        let userMessage = PersistableMessage(role: .user, content: prompt)
+        currentConversation?.messages.append(userMessage)
+
+        // Auto-title from first message
+        if currentConversation?.messages.count == 1 {
+            currentConversation?.updateTitleFromFirstMessage()
+        }
+
+        inputText = ""
+        saveCurrentConversation()
+
         generate(prompt: prompt)
     }
 
@@ -100,9 +160,9 @@ final class ChatViewModel: ObservableObject {
         errorMessage = nil
 
         // Append a placeholder assistant message that we'll stream into
-        let assistantMessage = Message(role: .assistant, content: "")
-        messages.append(assistantMessage)
-        let messageIndex = messages.count - 1
+        let assistantMessage = PersistableMessage(role: .assistant, content: "")
+        currentConversation?.messages.append(assistantMessage)
+        let messageIndex = (currentConversation?.messages.count ?? 1) - 1
 
         generationTask = Task {
             let stream = engine.generateStream(
@@ -114,14 +174,15 @@ final class ChatViewModel: ObservableObject {
 
             for await token in stream {
                 if Task.isCancelled { break }
-                messages[messageIndex].content += token
+                currentConversation?.messages[messageIndex].content += token
             }
 
             // Remove empty assistant messages (e.g., if generation failed immediately)
-            if messages[messageIndex].content.isEmpty {
-                messages.remove(at: messageIndex)
+            if let content = currentConversation?.messages[messageIndex].content, content.isEmpty {
+                currentConversation?.messages.remove(at: messageIndex)
             }
 
+            saveCurrentConversation()
             isGenerating = false
             generationTask = nil
         }
@@ -129,12 +190,12 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Resource Paths
 
-    private static func bundledModelPath() -> String {
-        if let path = Bundle.main.path(forResource: "grasslm-6L", ofType: "grasslm") {
+    private static func bundledModelPath(for modelID: String) -> String {
+        let model = ModelInfo.available.first(where: { $0.id == modelID }) ?? ModelInfo.available[0]
+        if let path = Bundle.main.path(forResource: model.resourceName, ofType: model.fileExtension) {
             return path
         }
-        // Fallback for development: look in the project Resources directory
-        return "grasslm-6L.grasslm"
+        return "\(model.resourceName).\(model.fileExtension)"
     }
 
     private static func bundledVocabPath() -> String {

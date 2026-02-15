@@ -1,41 +1,56 @@
 import SwiftUI
 
-/// A styled message bubble for user or assistant messages.
+/// A message row styled like Claude/ChatGPT:
+/// - User messages: right-aligned in a rounded rectangle
+/// - Assistant messages: left-aligned, plain text on the page
 struct MessageBubble: View {
-    let message: Message
+    let message: PersistableMessage
 
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: 60) }
-
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(bubbleBackground)
-                    .foregroundStyle(isUser ? .white : .primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                Text(message.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
+        HStack(alignment: .top, spacing: 0) {
+            if isUser {
+                Spacer(minLength: 80)
+                userBubble
+            } else {
+                assistantView
+                Spacer(minLength: 80)
             }
-
-            if !isUser { Spacer(minLength: 60) }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 2)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 6)
     }
 
-    private var bubbleBackground: some ShapeStyle {
-        if isUser {
-            return Color.accentColor
-        } else {
-            return Color(.controlBackgroundColor)
+    // MARK: - User Message
+
+    private var userBubble: some View {
+        Text(message.content)
+            .textSelection(.enabled)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.accentColor.opacity(0.15))
+            .foregroundStyle(.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Assistant Message
+
+    private var assistantView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "leaf.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Text("GrassLM")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(message.content)
+                .textSelection(.enabled)
+                .lineSpacing(3)
         }
     }
 }

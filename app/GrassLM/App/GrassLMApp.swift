@@ -6,6 +6,7 @@ struct GrassLMApp: App {
         WindowGroup {
             ContentView()
         }
-        .defaultSize(width: 700, height: 600)
+        .defaultSize(width: 960, height: 640)
+        .windowStyle(.hiddenTitleBar)
     }
 }

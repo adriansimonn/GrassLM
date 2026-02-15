@@ -3,8 +3,6 @@ import SwiftUI
 /// Settings panel for controlling generation parameters.
 struct SettingsView: View {
     @ObservedObject var viewModel: ChatViewModel
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -12,8 +10,6 @@ struct SettingsView: View {
                 Text("Generation Settings")
                     .font(.headline)
                 Spacer()
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
             }
             .padding()
 
@@ -89,6 +85,6 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
         }
-        .frame(width: 400, height: 420)
+        .frame(width: 340, height: 380)
     }
 }

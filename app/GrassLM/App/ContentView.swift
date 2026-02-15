@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Root view that manages model loading and presents the chat interface.
+/// Root view with sidebar chat history and main chat area.
 struct ContentView: View {
     @StateObject private var viewModel = ChatViewModel()
 
@@ -11,13 +11,26 @@ struct ContentView: View {
             } else if !viewModel.isModelLoaded {
                 loadFailedView
             } else {
-                ChatView(viewModel: viewModel)
+                mainLayout
             }
         }
-        .frame(minWidth: 400, minHeight: 300)
-        .navigationTitle("GrassLM")
+        .ignoresSafeArea()
+        .frame(minWidth: 600, minHeight: 400)
+        .background(WindowConfigurator())
         .onAppear {
             viewModel.loadModel()
+        }
+    }
+
+    // MARK: - Main Layout
+
+    private var mainLayout: some View {
+        HSplitView {
+            SidebarView(viewModel: viewModel)
+                .frame(minWidth: 160, idealWidth: 240, maxWidth: 360)
+
+            ChatView(viewModel: viewModel)
+                .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -60,4 +73,24 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+// MARK: - Window Configuration
+
+/// Configures the hosting NSWindow for a seamless, full-bleed title bar.
+struct WindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+                window.styleMask.insert(.fullSizeContentView)
+                window.isMovableByWindowBackground = true
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
