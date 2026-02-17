@@ -25,9 +25,11 @@ struct ChatView: View {
         VStack(spacing: 12) {
             Spacer()
 
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.green.opacity(0.6))
+            Image("GrassIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 128, height: 128)
+                .opacity(0.6)
 
             Text("GrassLM")
                 .font(.title2)

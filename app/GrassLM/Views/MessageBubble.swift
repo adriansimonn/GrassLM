@@ -44,9 +44,10 @@ struct MessageBubble: View {
     private var assistantView: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "leaf.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
+                Image("GrassIcon")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
                 Text(modelDisplayName)
                     .font(.caption)
                     .fontWeight(.semibold)
