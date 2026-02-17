@@ -140,4 +140,77 @@ final class GrassLMWrapper: @unchecked Sendable {
             }
         }
     }
+
+    // MARK: - Interpretability
+
+    /// Tokenize text into WordPiece subwords and their IDs.
+    func tokenize(text: String) async throws -> TokenizationResult {
+        guard let ctx = context else { throw GrassLMError.generationFailed }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                guard let cStr = grasslm_tokenize(ctx, text) else {
+                    continuation.resume(throwing: GrassLMError.generationFailed)
+                    return
+                }
+                let json = String(cString: cStr)
+                grasslm_free_string(cStr)
+
+                do {
+                    let result = try JSONDecoder().decode(TokenizationResult.self, from: Data(json.utf8))
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Run a debug forward pass and return per-layer activation data.
+    func forwardDebug(tokenIDs: [Int]) async throws -> ForwardDebugData {
+        guard let ctx = context else { throw GrassLMError.generationFailed }
+
+        let idsJSON = "[\(tokenIDs.map(String.init).joined(separator: ","))]"
+
+        return try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                guard let cStr = grasslm_forward_debug(ctx, idsJSON) else {
+                    continuation.resume(throwing: GrassLMError.generationFailed)
+                    return
+                }
+                let json = String(cString: cStr)
+                grasslm_free_string(cStr)
+
+                do {
+                    let result = try JSONDecoder().decode(ForwardDebugData.self, from: Data(json.utf8))
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Retrieve the loaded model's architecture configuration.
+    func modelConfig() async throws -> ModelArchConfig {
+        guard let ctx = context else { throw GrassLMError.generationFailed }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                guard let cStr = grasslm_model_config(ctx) else {
+                    continuation.resume(throwing: GrassLMError.generationFailed)
+                    return
+                }
+                let json = String(cString: cStr)
+                grasslm_free_string(cStr)
+
+                do {
+                    let config = try JSONDecoder().decode(ModelArchConfig.self, from: Data(json.utf8))
+                    continuation.resume(returning: config)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
 }
