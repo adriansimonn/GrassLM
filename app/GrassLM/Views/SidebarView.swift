@@ -25,7 +25,7 @@ struct SidebarView: View {
                 .help("New Chat")
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 38)
             .padding(.bottom, 12)
 
             Divider()

@@ -34,7 +34,7 @@ struct ChatView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
 
-            Text("Start a conversation")
+            Text("Generate text from input")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
 

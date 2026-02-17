@@ -3,6 +3,7 @@ import SwiftUI
 /// Root view with sidebar chat history and main chat area.
 struct ContentView: View {
     @StateObject private var viewModel = ChatViewModel()
+    @State private var sidebarWidth: CGFloat = 240
 
     var body: some View {
         Group {
@@ -25,12 +26,32 @@ struct ContentView: View {
     // MARK: - Main Layout
 
     private var mainLayout: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             SidebarView(viewModel: viewModel)
-                .frame(minWidth: 160, idealWidth: 240, maxWidth: 360)
+                .frame(width: sidebarWidth)
+                .frame(maxHeight: .infinity)
+
+            // Draggable divider
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(width: 1)
+                .contentShape(Rectangle().inset(by: -3))
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.resizeLeftRight.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { value in
+                            sidebarWidth = max(160, min(360, value.location.x))
+                        }
+                )
 
             ChatView(viewModel: viewModel)
-                .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
