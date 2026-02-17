@@ -9,7 +9,7 @@
   <br />
   <a href="https://arxiv.org/abs/2512.19428">Paper</a> ·
   <a href="#architecture">Architecture</a> ·
-  <a href="#getting-started">Getting Started</a>
+  <a href="https://github.com/adriansimonn/GrassLM/releases/download/v1.0.0/GrassLM-1.0.dmg">Download (MacOS)</a>
 </p>
 
 ---
