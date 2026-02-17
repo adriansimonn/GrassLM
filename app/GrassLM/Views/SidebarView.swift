@@ -22,6 +22,9 @@ struct SidebarView: View {
                         .font(.system(size: 14, weight: .medium))
                 }
                 .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
                 .help("New Chat")
             }
             .padding(.horizontal, 16)
@@ -106,6 +109,7 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             hoveredID = hovering ? conversation.id : nil
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
         .contextMenu {
             Button {

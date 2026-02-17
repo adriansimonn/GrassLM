@@ -81,6 +81,9 @@ struct SettingsView: View {
                         viewModel.topP = 0.9
                         viewModel.maxTokens = 128
                     }
+                    .onHover { inside in
+                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
                 }
             }
             .formStyle(.grouped)

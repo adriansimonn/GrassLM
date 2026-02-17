@@ -109,6 +109,9 @@ struct ContentView: View {
                 viewModel.loadModel()
             }
             .buttonStyle(.borderedProminent)
+            .onHover { inside in
+                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

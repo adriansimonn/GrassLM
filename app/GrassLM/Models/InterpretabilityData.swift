@@ -32,6 +32,7 @@ struct ForwardDebugData: Codable {
     let finalNormHeatmap: [[Float]]
     let heatmapCols: Int
     let topLogits: [TokenPrediction]
+    let topLogitsPerPosition: [[TokenPrediction]]
 
     enum CodingKeys: String, CodingKey {
         case nLayers = "n_layers"
@@ -44,6 +45,7 @@ struct ForwardDebugData: Codable {
         case finalNormHeatmap = "final_norm_heatmap"
         case heatmapCols = "heatmap_cols"
         case topLogits = "top_logits"
+        case topLogitsPerPosition = "top_logits_per_position"
     }
 }
 

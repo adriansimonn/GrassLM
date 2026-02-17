@@ -97,6 +97,9 @@ struct ChatView: View {
                     }
                     .buttonStyle(.plain)
                     .font(.caption)
+                    .onHover { inside in
+                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
@@ -139,6 +142,9 @@ struct ChatView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onHover { inside in
+                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                    }
                     .help("Generation Settings")
                     .popover(isPresented: $showSettings) {
                         SettingsView(viewModel: viewModel)
@@ -155,6 +161,9 @@ struct ChatView: View {
                                 .foregroundStyle(.red)
                         }
                         .buttonStyle(.plain)
+                        .onHover { inside in
+                            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
                         .help("Stop generating")
                     } else {
                         Button {
@@ -171,6 +180,9 @@ struct ChatView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .onHover { inside in
+                            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
                         .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.isModelLoaded)
                         .help("Send (Enter)")
                     }

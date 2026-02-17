@@ -320,36 +320,61 @@ char* grasslm_forward_debug(GrassLMContext handle, const char* token_ids_json) {
     json_heatmap(ss, dbg.final_norm_output.data(), L, d, MAX_HEATMAP_COLS);
 
     // top_logits: softmax on last position, top 5 predictions
+    // top_logits_per_position: per-position softmax top 5 predictions
     {
-        // Get logits for the last position
-        const float* last_logits = dbg.logits.data() + (L - 1) * vocab_size;
-
-        // Find max for numerical stability
-        float max_val = *std::max_element(last_logits, last_logits + vocab_size);
-
-        // Compute softmax
         std::vector<float> probs(vocab_size);
+        std::vector<int> top_indices(vocab_size);
+        const int top_k = 5;
+
+        // Last-position predictions (backward-compatible top_logits)
+        const float* last_logits = dbg.logits.data() + (L - 1) * vocab_size;
+        float max_val = *std::max_element(last_logits, last_logits + vocab_size);
         float sum_exp = 0.0f;
         for (int i = 0; i < vocab_size; ++i) {
             probs[i] = std::exp(last_logits[i] - max_val);
             sum_exp += probs[i];
         }
-        for (int i = 0; i < vocab_size; ++i) {
-            probs[i] /= sum_exp;
-        }
+        for (int i = 0; i < vocab_size; ++i) probs[i] /= sum_exp;
 
-        // Find top 5
-        std::vector<int> top_indices(vocab_size);
         for (int i = 0; i < vocab_size; ++i) top_indices[i] = i;
-        std::partial_sort(top_indices.begin(), top_indices.begin() + 5, top_indices.end(),
+        std::partial_sort(top_indices.begin(), top_indices.begin() + top_k, top_indices.end(),
             [&probs](int a, int b) { return probs[a] > probs[b]; });
 
         ss << ",\"top_logits\":[";
-        for (int i = 0; i < 5 && i < vocab_size; ++i) {
+        for (int i = 0; i < top_k && i < vocab_size; ++i) {
             if (i > 0) ss << ',';
             int idx = top_indices[i];
             ss << "{\"token\":\"" << json_escape(ctx->tokenizer.id_to_token(idx))
                << "\",\"prob\":" << probs[idx] << '}';
+        }
+        ss << ']';
+
+        // Per-position predictions
+        ss << ",\"top_logits_per_position\":[";
+        for (int pos = 0; pos < L; ++pos) {
+            if (pos > 0) ss << ',';
+            const float* pos_logits = dbg.logits.data() + pos * vocab_size;
+
+            max_val = *std::max_element(pos_logits, pos_logits + vocab_size);
+            sum_exp = 0.0f;
+            for (int i = 0; i < vocab_size; ++i) {
+                probs[i] = std::exp(pos_logits[i] - max_val);
+                sum_exp += probs[i];
+            }
+            for (int i = 0; i < vocab_size; ++i) probs[i] /= sum_exp;
+
+            for (int i = 0; i < vocab_size; ++i) top_indices[i] = i;
+            std::partial_sort(top_indices.begin(), top_indices.begin() + top_k, top_indices.end(),
+                [&probs](int a, int b) { return probs[a] > probs[b]; });
+
+            ss << '[';
+            for (int i = 0; i < top_k && i < vocab_size; ++i) {
+                if (i > 0) ss << ',';
+                int idx = top_indices[i];
+                ss << "{\"token\":\"" << json_escape(ctx->tokenizer.id_to_token(idx))
+                   << "\",\"prob\":" << probs[idx] << '}';
+            }
+            ss << ']';
         }
         ss << ']';
     }

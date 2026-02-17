@@ -13,7 +13,7 @@ struct InterpretabilityOverlay: View {
     private var title: String {
         switch payload {
         case .userMessage: "Input Analysis"
-        case .assistantMessage: "Model Interpretability"
+        case .assistantMessage: "Output Analysis"
         }
     }
 
@@ -31,7 +31,7 @@ struct InterpretabilityOverlay: View {
             VStack(spacing: 0) {
                 topBar
                     .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    .padding(.top, 48)
                     .padding(.bottom, 8)
 
                 ScrollView {
@@ -80,6 +80,9 @@ struct InterpretabilityOverlay: View {
                     .foregroundStyle(.white.opacity(0.7))
                 }
                 .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
 
                 Spacer()
             }
@@ -103,13 +106,11 @@ struct InterpretabilityOverlay: View {
 
     @ViewBuilder
     private func assistantMessageContent(tokenization: TokenizationResult, debugData: ForwardDebugData, archConfig: ModelArchConfig) -> some View {
-        NeuralNetworkDiagramView(debugData: debugData, archConfig: archConfig)
+        NeuralNetworkDiagramView(debugData: debugData, archConfig: archConfig, tokens: tokenization.tokens)
 
         LayerActivationView(tokens: tokenization.tokens, debugData: debugData)
 
         TokenizationView(tokenization: tokenization)
-
-        TopPredictionsView(predictions: debugData.topLogits)
     }
 
     // MARK: - Dismiss

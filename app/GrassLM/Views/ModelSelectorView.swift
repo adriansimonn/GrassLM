@@ -10,17 +10,17 @@ struct ModelInfo: Identifiable, Hashable {
 
     static let available: [ModelInfo] = [
         ModelInfo(
-            id: "grasslm-10m",
-            displayName: "GrassLM 10M",
-            parameterCount: "12.6M params",
-            resourceName: "grasslm-6L",
-            fileExtension: "grasslm"
-        ),
-        ModelInfo(
             id: "grasslm-100m",
             displayName: "GrassLM 100M",
             parameterCount: "102M params",
             resourceName: "grasslm-12L",
+            fileExtension: "grasslm"
+        ),
+        ModelInfo(
+            id: "grasslm-10m",
+            displayName: "GrassLM 10M",
+            parameterCount: "12.6M params",
+            resourceName: "grasslm-6L",
             fileExtension: "grasslm"
         ),
     ]
@@ -74,6 +74,9 @@ struct ModelSelectorView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .onHover { inside in
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 
     private var selectedModelDisplayName: String {

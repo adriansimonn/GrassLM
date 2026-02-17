@@ -27,13 +27,15 @@ struct MessageBubble: View {
 
     private var userBubble: some View {
         Text(message.content)
-            .textSelection(.enabled)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color.accentColor.opacity(0.15))
             .foregroundStyle(.primary)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .contentShape(RoundedRectangle(cornerRadius: 20))
+            .onHover { hovering in
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
             .onTapGesture { onTap?() }
     }
 
@@ -52,10 +54,12 @@ struct MessageBubble: View {
             }
 
             Text(message.content)
-                .textSelection(.enabled)
                 .lineSpacing(3)
         }
         .contentShape(Rectangle())
+        .onHover { hovering in
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
         .onTapGesture { onTap?() }
     }
 
