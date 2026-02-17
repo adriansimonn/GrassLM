@@ -355,7 +355,7 @@ struct NeuralNetworkDiagramView: View {
                 Image(systemName: "chart.bar.fill")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
-                Text("Next Token Predictions")
+                Text("Token Probabilities")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
 
