@@ -14,6 +14,12 @@ final class ChatViewModel: ObservableObject {
     @Published var isLoadingModel: Bool = false
     @Published var errorMessage: String?
 
+    // MARK: - Interpretability State
+
+    @Published var isInterpretabilityVisible = false
+    @Published var interpretabilityPayload: InterpretabilityPayload?
+    @Published var isLoadingInterpretability = false
+
     // MARK: - Model Selection
 
     @Published var selectedModelID: String = ModelInfo.available.first?.id ?? "" {
@@ -234,6 +240,48 @@ final class ChatViewModel: ObservableObject {
             isGenerating = false
             generationTask = nil
         }
+    }
+
+    // MARK: - Interpretability
+
+    /// Analyze a tapped message and present the interpretability overlay.
+    func showInterpretability(for message: PersistableMessage) {
+        guard !isGenerating, !isLoadingInterpretability, let engine = engine else { return }
+
+        isLoadingInterpretability = true
+
+        Task {
+            do {
+                let tokenization = try await engine.tokenize(text: message.content)
+                let debugData = try await engine.forwardDebug(tokenIDs: tokenization.ids)
+
+                switch message.role {
+                case .user:
+                    interpretabilityPayload = .userMessage(
+                        tokenization: tokenization,
+                        debugData: debugData
+                    )
+                case .assistant:
+                    let archConfig = try await engine.modelConfig()
+                    interpretabilityPayload = .assistantMessage(
+                        tokenization: tokenization,
+                        debugData: debugData,
+                        archConfig: archConfig
+                    )
+                }
+
+                isInterpretabilityVisible = true
+            } catch {
+                errorMessage = "Interpretability analysis failed: \(error.localizedDescription)"
+            }
+            isLoadingInterpretability = false
+        }
+    }
+
+    /// Dismiss the interpretability overlay and clear its data.
+    func dismissInterpretability() {
+        isInterpretabilityVisible = false
+        interpretabilityPayload = nil
     }
 
     // MARK: - Resource Paths
