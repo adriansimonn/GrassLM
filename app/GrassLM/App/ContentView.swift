@@ -53,6 +53,24 @@ struct ContentView: View {
             ChatView(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .overlay {
+            if viewModel.isInterpretabilityVisible, let payload = viewModel.interpretabilityPayload {
+                InterpretabilityOverlay(payload: payload) {
+                    viewModel.dismissInterpretability()
+                }
+            }
+        }
+        .overlay {
+            if viewModel.isLoadingInterpretability {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                }
+            }
+        }
     }
 
     // MARK: - Loading State
