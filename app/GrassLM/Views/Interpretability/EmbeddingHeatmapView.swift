@@ -87,7 +87,7 @@ struct EmbeddingHeatmapView: View {
 
             // Dimension info
             HStack(spacing: 16) {
-                Text("\(rows) tokens \u00d7 \(heatmap.first?.count ?? 0) dims")
+                Text("\(rows) tokens \u{00d7} \(heatmap.first?.count ?? 0) dims")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.35))
 
@@ -141,6 +141,6 @@ struct EmbeddingHeatmapView: View {
 
     private func truncateToken(_ token: String, maxLen: Int) -> String {
         if token.count <= maxLen { return token }
-        return String(token.prefix(maxLen - 1)) + "\u2026"
+        return String(token.prefix(maxLen - 1)) + "\u{2026}"
     }
 }

@@ -68,7 +68,7 @@ struct TopPredictionsView: View {
     /// Formats special tokens for display (e.g. replaces whitespace markers).
     private func formatToken(_ token: String) -> String {
         token
-            .replacingOccurrences(of: "\u2581", with: "\u2423") // ▁ → ␣
+            .replacingOccurrences(of: "\u{2581}", with: "\u{2423}") // ▁ → ␣
             .replacingOccurrences(of: "\n", with: "\\n")
     }
 }

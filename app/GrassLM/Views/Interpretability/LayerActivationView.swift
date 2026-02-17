@@ -168,6 +168,6 @@ struct NormBarChart: View {
 
     private func truncateToken(_ token: String, maxLen: Int) -> String {
         if token.count <= maxLen { return token }
-        return String(token.prefix(maxLen - 1)) + "\u2026"
+        return String(token.prefix(maxLen - 1)) + "\u{2026}"
     }
 }
