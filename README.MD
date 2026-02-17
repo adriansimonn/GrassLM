@@ -14,11 +14,11 @@
 
 ---
 
-GrassLM is a language model that replaces self-attention entirely with a geometric mixing mechanism based on **Grassmann manifolds**. Instead of computing dense L×L attention matrices, it encodes local token relationships as points on Gr(2, r) via Plücker coordinates — achieving competitive perplexity with **linear scaling** in sequence length.
+GrassLM is a language model that replaces self-attention entirely with a geometric mixing mechanism based on **Grassmann manifolds**. Instead of computing dense L×L attention matrices, it encodes local token relationships as points on Gr(2, r) via Plücker coordinates, achieving competitive perplexity with **linear scaling** in sequence length.
 
 Based on *"Attention Is Not What You Need: Grassmann Flows as an Attention-Free Alternative for Sequence Modeling"* ([Zhang Chong, 2025](https://arxiv.org/abs/2512.19428)).
 
-#### Note: The models implemented in the application are very small and produce outputs much worse than foundational LLMs. This project is a research implementation.
+#### Note: The models implemented in the application are very small and produce outputs much worse than foundational LLMs. This project is a research implementation. Check out the input and output analytical visuals by clicking on your input or any generated output in the desktop app!
 
 ## Architecture
 
@@ -46,7 +46,7 @@ GrassLM takes a different approach. Instead of lifting to an attention tensor, e
 
 2. **Multi-scale local pairing.** For a set of causal window offsets W = {1, 2, 4, 8, 12, 16}, each token is paired with future neighbors at multiple scales: (z_t, z_{t+Δ}).
 
-3. **Grassmann / Plücker encoding.** Each pair spans a 2D subspace on the Grassmann manifold Gr(2, r). This subspace is embedded into projective space via the Plücker map — computing all pairwise determinants p_ij = z_{t,i} · z_{t+Δ,j} − z_{t,j} · z_{t+Δ,i} to produce a coordinate vector in R^(r choose 2).
+3. **Grassmann / Plücker encoding.** Each pair spans a 2D subspace on the Grassmann manifold Gr(2, r). This subspace is embedded into projective space via the Plücker map, computing all pairwise determinants p_ij = z_{t,i} · z_{t+Δ,j} − z_{t,j} · z_{t+Δ,i} to produce a coordinate vector in R^(r choose 2).
 
 4. **Projection back to model space.** The Plücker features are linearly projected back to R^d and aggregated across offsets.
 
@@ -58,7 +58,7 @@ GrassLM takes a different approach. Instead of lifting to an attention tensor, e
 
 | | Self-Attention | Grassmann Mixing |
 |---|---|---|
-| **Complexity** | O(L²d) | O(Ld²) — linear in L |
+| **Complexity** | O(L²d) | O(Ld²) (linear in L) |
 | **Core operation** | Dense L×L weight matrix | Plücker coordinates on Gr(2, r) |
 | **Interpretability** | Opaque tensor lifting | Finite-dimensional manifold with explicit invariants |
 | **Information flow** | Global pairwise weights | Multi-scale local windows across layers |
@@ -83,6 +83,8 @@ docs/            Research paper
 ```
 
 ## Getting Started
+
+### Download [here](https://github.com/adriansimonn/GrassLM/releases/download/v1.0.0/GrassLM-1.0.dmg) or set it up yourself:
 
 ### Training (Python)
 
