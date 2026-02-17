@@ -16,6 +16,9 @@ struct NeuralNetworkDiagramView: View {
     let archConfig: ModelArchConfig
     let tokens: [String]
 
+    /// Pre-computed once in init — avoids O(n) iteration over all norms on every frame.
+    private let globalMaxNorm: Float
+
     @State private var animationProgress: CGFloat = 0
     @State private var currentTokenStep: Int = 0
     @State private var isPlaying = false
@@ -25,6 +28,23 @@ struct NeuralNetworkDiagramView: View {
 
     /// 60 fps timer driving the animation when playing.
     private let frameTimer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    init(debugData: ForwardDebugData, archConfig: ModelArchConfig, tokens: [String]) {
+        self.debugData = debugData
+        self.archConfig = archConfig
+        self.tokens = tokens
+
+        var maxVal: Float = 0
+        for n in debugData.embedNorms { maxVal = max(maxVal, abs(n)) }
+        for layer in debugData.blockNorms {
+            for n in layer { maxVal = max(maxVal, abs(n)) }
+        }
+        for row in debugData.finalNormHeatmap {
+            let n = sqrt(row.reduce(0) { $0 + $1 * $1 })
+            maxVal = max(maxVal, n)
+        }
+        self.globalMaxNorm = max(maxVal, 1e-6)
+    }
 
     // MARK: - Visual Constants
 
@@ -48,19 +68,6 @@ struct NeuralNetworkDiagramView: View {
         currentTokenStep >= totalTokenSteps - 1 && animationProgress >= 1.0
     }
 
-    /// Global max norm across all positions and layers for consistent brightness scaling.
-    private var globalMaxNorm: Float {
-        var maxVal: Float = 0
-        for n in debugData.embedNorms { maxVal = max(maxVal, abs(n)) }
-        for layer in debugData.blockNorms {
-            for n in layer { maxVal = max(maxVal, abs(n)) }
-        }
-        for row in debugData.finalNormHeatmap {
-            let n = sqrt(row.reduce(0) { $0 + $1 * $1 })
-            maxVal = max(maxVal, n)
-        }
-        return max(maxVal, 1e-6)
-    }
 
     // MARK: - Token Display
 
@@ -604,9 +611,10 @@ struct NeuralNetworkDiagramView: View {
             horizontalPadding + drawWidth * CGFloat(i) / CGFloat(layerCount - 1)
         }
 
-        func positions(for layerIndex: Int) -> [CGPoint] {
-            let x = layerX(layerIndex)
-            let n = infos[layerIndex].neuronCount
+        // Pre-compute all layer positions once (avoids 2-3x redundant calculation per layer)
+        let allPositions: [[CGPoint]] = (0..<layerCount).map { i in
+            let x = layerX(i)
+            let n = infos[i].neuronCount
             let spacing = neuronHeight / CGFloat(n + 1)
             return (0..<n).map { j in
                 CGPoint(x: x, y: neuronTop + spacing * CGFloat(j + 1))
@@ -615,8 +623,8 @@ struct NeuralNetworkDiagramView: View {
 
         // --- Connections ---
         for i in 0..<(layerCount - 1) {
-            let fromPts = positions(for: i)
-            let toPts = positions(for: i + 1)
+            let fromPts = allPositions[i]
+            let toPts = allPositions[i + 1]
             let glow = connectionGlow(fromLayer: i, totalLayers: layerCount)
             let fromInfo = infos[i]
             let toInfo = infos[i + 1]
@@ -654,7 +662,7 @@ struct NeuralNetworkDiagramView: View {
 
         // --- Neurons ---
         for i in 0..<layerCount {
-            let pts = positions(for: i)
+            let pts = allPositions[i]
             let info = infos[i]
             let timingGlow = neuronGlow(layer: i, totalLayers: layerCount)
 
@@ -707,7 +715,7 @@ struct NeuralNetworkDiagramView: View {
         // --- Output arrows ---
         let outputIdx = layerCount - 1
         let outputActivation = neuronGlow(layer: outputIdx, totalLayers: layerCount)
-        for pos in positions(for: outputIdx) {
+        for pos in allPositions[outputIdx] {
             let start = CGPoint(x: pos.x + neuronRadius + 3, y: pos.y)
             let end = CGPoint(x: pos.x + neuronRadius + 16, y: pos.y)
 

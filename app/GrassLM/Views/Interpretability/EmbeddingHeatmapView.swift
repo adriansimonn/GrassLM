@@ -9,18 +9,32 @@ struct EmbeddingHeatmapView: View {
     let heatmap: [[Float]]
     let title: String
 
-    /// Maximum columns to render. Downsamples if the heatmap is wider.
-    private let maxDisplayCols = 256
-
     /// Label area width to the left of the heatmap grid.
     private let labelWidth: CGFloat = 70
 
     /// Height of each token row.
     private let rowHeight: CGFloat = 22
 
-    /// Normalized heatmap values in [0, 1], downsampled if needed.
-    private var normalizedData: [[Float]] {
-        guard let first = heatmap.first, !first.isEmpty else { return [] }
+    /// Pre-computed normalized heatmap values in [0, 1], downsampled if needed.
+    private let normalizedData: [[Float]]
+
+    /// Number of display columns (capped at 256).
+    private let displayCols: Int
+
+    init(tokens: [String], heatmap: [[Float]], title: String) {
+        self.tokens = tokens
+        self.heatmap = heatmap
+        self.title = title
+
+        let maxDisplayCols = 256
+
+        guard let first = heatmap.first, !first.isEmpty else {
+            self.normalizedData = []
+            self.displayCols = 0
+            return
+        }
+
+        self.displayCols = min(first.count, maxDisplayCols)
 
         let allValues = heatmap.flatMap { $0 }
         let minVal = allValues.min() ?? 0
@@ -28,15 +42,10 @@ struct EmbeddingHeatmapView: View {
         let range = maxVal - minVal
         let safeRange = range > 1e-8 ? range : 1
 
-        return heatmap.map { row in
-            let downsampled = downsample(row, to: maxDisplayCols)
+        self.normalizedData = heatmap.map { row in
+            let downsampled = Self.downsample(row, to: maxDisplayCols)
             return downsampled.map { ($0 - minVal) / safeRange }
         }
-    }
-
-    private var displayCols: Int {
-        guard let first = heatmap.first else { return 0 }
-        return min(first.count, maxDisplayCols)
     }
 
     var body: some View {
@@ -127,7 +136,7 @@ struct EmbeddingHeatmapView: View {
     }
 
     /// Downsample a row by averaging groups of values.
-    private func downsample(_ row: [Float], to maxCols: Int) -> [Float] {
+    private static func downsample(_ row: [Float], to maxCols: Int) -> [Float] {
         guard row.count > maxCols else { return row }
         let groupSize = Float(row.count) / Float(maxCols)
         return (0..<maxCols).map { i in

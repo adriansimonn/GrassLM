@@ -24,6 +24,7 @@ struct InterpretabilityOverlay: View {
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
                 .overlay(Color.black.opacity(0.5))
+                .compositingGroup()
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
 
