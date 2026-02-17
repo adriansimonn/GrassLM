@@ -5,6 +5,7 @@ import SwiftUI
 /// - Assistant messages: left-aligned, plain text on the page
 struct MessageBubble: View {
     let message: PersistableMessage
+    var onTap: (() -> Void)? = nil
 
     private var isUser: Bool { message.role == .user }
 
@@ -32,6 +33,8 @@ struct MessageBubble: View {
             .background(Color.accentColor.opacity(0.15))
             .foregroundStyle(.primary)
             .clipShape(RoundedRectangle(cornerRadius: 20))
+            .contentShape(RoundedRectangle(cornerRadius: 20))
+            .onTapGesture { onTap?() }
     }
 
     // MARK: - Assistant Message
@@ -52,6 +55,8 @@ struct MessageBubble: View {
                 .textSelection(.enabled)
                 .lineSpacing(3)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { onTap?() }
     }
 
     private var modelDisplayName: String {

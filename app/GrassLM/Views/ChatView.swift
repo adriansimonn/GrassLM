@@ -50,8 +50,10 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
+                        MessageBubble(message: message) {
+                            viewModel.showInterpretability(for: message)
+                        }
+                        .id(message.id)
                     }
 
                     if viewModel.isGenerating {
